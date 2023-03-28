@@ -1,15 +1,41 @@
 OPT = mlir-opt
 
-OPTFLAGS = 
+OPTFLAGS =
 OPTFLAGS += --one-shot-bufferize
-OPTFLAGS += --convert-linalg-to-affine-loops
-OPTFLAGS += --convert-func-to-llvm
-OPTFLAGS += --convert-memref-to-llvm
-OPTFLAGS += --convert-index-to-llvm
-OPTFLAGS += --convert-arith-to-llvm
-OPTFLAGS += --convert-scf-to-cf
-OPTFLAGS += --convert-cf-to-llvm
+
+# Pretty standard lowering strategy down to llvm:
+# taken straight from the 'test-lower-to-llvm' pass,
+# the sequence below should be identical to:
+# OPTFLAGS += --test-lower-to-llvm
+
+# Blanket-convert any remaining high-level vector ops to loops if any remain.
+OPTFLAGS += --convert-vector-to-scf
+# Blanket-convert any remaining linalg ops to loops if any remain.
+OPTFLAGS += --convert-linalg-to-loops
+# Blanket-convert any remaining affine ops if any remain.
 OPTFLAGS += --lower-affine
+# Convert SCF to CF (always needed).
+OPTFLAGS += --convert-scf-to-cf
+# Sprinkle some cleanups.
+OPTFLAGS += --canonicalize
+OPTFLAGS += --cse
+# Blanket-convert any remaining linalg ops to LLVM if any remain.
+OPTFLAGS += --convert-linalg-to-llvm
+# Convert vector to LLVM (always needed).
+OPTFLAGS += --convert-vector-to-llvm=reassociate-fp-reductions
+# Convert Math to LLVM (always needed).
+OPTFLAGS += --convert-math-to-llvm
+# Expand complicated MemRef operations before lowering them.
+OPTFLAGS += --expand-strided-metadata
+# The expansion may create affine expressions. Get rid of them.
+OPTFLAGS += --lower-affine
+# Convert MemRef to LLVM (always needed).
+OPTFLAGS += --convert-memref-to-llvm
+# Convert Func to LLVM (always needed).
+OPTFLAGS += --convert-func-to-llvm
+# Convert Index to LLVM (always needed).
+OPTFLAGS += --convert-index-to-llvm
+# Convert remaining unrealized_casts (always needed).
 OPTFLAGS += --reconcile-unrealized-casts
 
 %.opt.mlir: %.mlir
