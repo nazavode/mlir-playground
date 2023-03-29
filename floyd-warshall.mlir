@@ -1,6 +1,6 @@
 module {
 
-memref.global constant @adj : memref<36x36xi32> = dense<[
+memref.global constant @adj : memref<36x36xi8> = dense<[
   [0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   [1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0],
   [0,1,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -40,11 +40,12 @@ memref.global constant @adj : memref<36x36xi32> = dense<[
   ]>
 
 func.func @main() -> i32 {
-  %adj_memref = memref.get_global @adj : memref<36x36xi32>
-  %init = bufferization.to_tensor %adj_memref : memref<36x36xi32>
-  %squared = linalg.matmul ins(%init, %init: tensor<36x36xi32>, tensor<36x36xi32>) outs(%init: tensor<36x36xi32>) -> tensor<36x36xi32>
+  %adj_memref = memref.get_global @adj : memref<36x36xi8>
+  %init = bufferization.to_tensor %adj_memref : memref<36x36xi8>
+  %squared = linalg.matmul ins(%init, %init: tensor<36x36xi8>, tensor<36x36xi8>) outs(%init: tensor<36x36xi8>) -> tensor<36x36xi8>
   %i = index.constant 0
-  %ret = tensor.extract %squared[%i, %i] : tensor<36x36xi32>
+  %v = tensor.extract %squared[%i, %i] : tensor<36x36xi8>
+  %ret = arith.extui %v : i8 to i32
   func.return %ret : i32
 }
 
