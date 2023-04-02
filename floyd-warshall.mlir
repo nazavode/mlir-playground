@@ -1,3 +1,14 @@
+
+#floyd_warshall_trait = {
+  doc = "W(i, j) = W(i, j) .min [v(i) .+ w(j)]",
+  indexing_maps = [
+    affine_map<(i, j) -> (i)>,
+    affine_map<(i, j) -> (j)>,
+    affine_map<(i, j) -> (i, j)>
+  ],
+  iterator_types = ["parallel", "parallel"]
+}
+
 module {
 
 memref.global constant @adj : memref<36x36xi8> = dense<[
@@ -38,15 +49,31 @@ memref.global constant @adj : memref<36x36xi8> = dense<[
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
   ]>
-
-func.func @main() -> i32 {
+  
+func.func @main() {
   %adj_memref = memref.get_global @adj : memref<36x36xi8>
-  %init = bufferization.to_tensor %adj_memref : memref<36x36xi8>
-  %squared = linalg.matmul ins(%init, %init: tensor<36x36xi8>, tensor<36x36xi8>) outs(%init: tensor<36x36xi8>) -> tensor<36x36xi8>
-  %i = index.constant 0
-  %v = tensor.extract %squared[%i, %i] : tensor<36x36xi8>
-  %ret = arith.extui %v : i8 to i32
-  func.return %ret : i32
+  %W = bufferization.to_tensor %adj_memref : memref<36x36xi8>
+  
+  %N = index.constant 36
+  affine.for %k = 0 to %N {
+    %column = tensor.extract_slice %W[0, %k] [36, 1] [1, 1] 
+                : tensor<36x36xi8> to tensor<36xi8>
+    %row = tensor.extract_slice %W[%k, 0] [1, 36] [1, 1]
+             : tensor<36x36xi8> to tensor<36xi8>
+    %P = linalg.generic #floyd_warshall_trait
+    ins(%column, %row : tensor<36xi8>, tensor<36xi8>)
+    outs(%W : tensor<36x36xi8>)
+    {
+    ^bb0(%a: i8, %b: i8, %c: i8) :
+      %newpath, %overflow = arith.addui_extended %b, %c : i8, i1
+      // FIXME: using integers for both A and W looks like a very bad idea...
+      %min = arith.minui %a, %newpath : i8
+      linalg.yield %min : i8
+    } -> tensor<36x36xi8>
+  }
+  
+  // TODO: vector.transfer_read -> vector.print
+  return
 }
 
 }
