@@ -49,29 +49,59 @@ memref.global constant @adj : memref<36x36xi8> = dense<[
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
   [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
   ]>
+
+func.func @make_weights(%A : tensor<36x36xi8>) -> tensor<36x36xf32> {
+  %inf = arith.constant 0x7F800000 : f32
+  %0 = arith.constant 0. : f32
+  %1 = arith.constant 1. : f32
+  %i0 = arith.constant 0 : i8
   
+  %empty = tensor.empty() : tensor<36x36xf32>
+
+  %W = linalg.generic {
+      indexing_maps = [affine_map<(i, j) -> (i, j)>, affine_map<(i, j) -> (i, j)>],
+      iterator_types = ["parallel", "parallel"]}
+      ins(%A : tensor<36x36xi8>) outs(%empty : tensor<36x36xf32>) {
+    ^bb0(%a : i8, %w : f32): // FIXME: %w not really needed here...
+      %isadjacent = arith.cmpi ne, %a, %i0 : i8
+      %res = arith.select %isadjacent, %1, %inf : f32
+      linalg.yield %res : f32
+  } -> tensor<36x36xf32>
+
+  %Wdiag = linalg.generic {
+      indexing_maps = [affine_map<(i) -> (i, i)>],
+      iterator_types = ["parallel"]}
+      outs(%W : tensor<36x36xf32>) {
+    ^bb0(%w : f32):
+      linalg.yield %0 : f32
+  } -> tensor<36x36xf32>
+
+  return %Wdiag : tensor<36x36xf32>
+}
+
 func.func @main() {
   %adj_memref = memref.get_global @adj : memref<36x36xi8>
-  %W = bufferization.to_tensor %adj_memref : memref<36x36xi8>
+  %A = bufferization.to_tensor %adj_memref : memref<36x36xi8>
+
+  %W = func.call @make_weights(%A) : (tensor<36x36xi8>) -> tensor<36x36xf32>
   
   %N = index.constant 36
   affine.for %k = 0 to %N {
     %column = tensor.extract_slice %W[0, %k] [36, 1] [1, 1] 
-                : tensor<36x36xi8> to tensor<36xi8>
+                : tensor<36x36xf32> to tensor<36xf32>
     %row = tensor.extract_slice %W[%k, 0] [1, 36] [1, 1]
-             : tensor<36x36xi8> to tensor<36xi8>
+             : tensor<36x36xf32> to tensor<36xf32>
     %P = linalg.generic #floyd_warshall_trait
-    ins(%column, %row : tensor<36xi8>, tensor<36xi8>)
-    outs(%W : tensor<36x36xi8>)
+    ins(%column, %row : tensor<36xf32>, tensor<36xf32>)
+    outs(%W : tensor<36x36xf32>)
     {
-    ^bb0(%a: i8, %b: i8, %c: i8) :
-      %newpath, %overflow = arith.addui_extended %b, %c : i8, i1
-      // FIXME: using integers for both A and W looks like a very bad idea...
-      %min = arith.minui %a, %newpath : i8
-      linalg.yield %min : i8
-    } -> tensor<36x36xi8>
+    ^bb0(%a: f32, %b: f32, %c: f32) :
+      %newpath = arith.addf %b, %c : f32
+      %min = arith.minf %a, %newpath : f32
+      linalg.yield %min : f32
+    } -> tensor<36x36xf32>
   }
-  
+
   // TODO: vector.transfer_read -> vector.print
   return
 }

@@ -1,7 +1,9 @@
 OPT = mlir-opt
 
 OPTFLAGS =
-OPTFLAGS += --one-shot-bufferize
+OPTFLAGS += --eliminate-empty-tensors
+OPTFLAGS += --empty-tensor-to-alloc-tensor
+OPTFLAGS += --one-shot-bufferize="bufferize-function-boundaries allow-return-allocs"
 
 # Pretty standard lowering strategy down to llvm:
 # taken straight from the 'test-lower-to-llvm' pass,
