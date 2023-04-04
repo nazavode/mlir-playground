@@ -6,6 +6,11 @@ OPTFLAGS += --eliminate-empty-tensors
 OPTFLAGS += --empty-tensor-to-alloc-tensor
 OPTFLAGS += --one-shot-bufferize="bufferize-function-boundaries allow-return-allocs"
 
+# Current lowering of all_to_all_shortest needs to save tensors
+# coming from previous iterations: let's hoist allocs out of
+# loop nests:
+OPTFLAGS += --buffer-loop-hoisting
+
 # Pretty standard lowering strategy down to llvm:
 # taken straight from the 'test-lower-to-llvm' pass,
 # the sequence below should be identical to:

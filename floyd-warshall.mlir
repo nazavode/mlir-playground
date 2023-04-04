@@ -1,6 +1,6 @@
 
 #floyd_warshall_trait = {
-  doc = "W(i, j) = W(i, j) .min [v(i) .+ w(j)]",
+  doc = "W_k(i, j) = W_{k-1}(i, j) .min [W(:, k) .+ W(k, :)] foreach k in N",
   indexing_maps = [
     affine_map<(i, j) -> (i)>,
     affine_map<(i, j) -> (j)>,
