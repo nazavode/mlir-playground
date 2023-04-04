@@ -1,4 +1,5 @@
-OPT = mlir-opt
+OPT       = mlir-opt
+TRANSLATE = mlir-translate
 
 OPTFLAGS =
 OPTFLAGS += --eliminate-empty-tensors
@@ -40,5 +41,10 @@ OPTFLAGS += --convert-index-to-llvm
 # Convert remaining unrealized_casts (always needed).
 OPTFLAGS += --reconcile-unrealized-casts
 
-%.opt.mlir: %.mlir
+.PRECIOUS: %.llvm.mlir
+
+%.llvm.mlir: %.mlir
 	$(OPT) $(OPTFLAGS) -o $@ $<
+
+%.ll: %.llvm.mlir
+	$(TRANSLATE) --mlir-to-llvmir -o $@ $<
