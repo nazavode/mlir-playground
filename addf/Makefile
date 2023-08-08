@@ -38,7 +38,7 @@ OPTFLAGS += --convert-memref-to-llvm
 # Convert Func to LLVM (always needed).
 OPTFLAGS += --convert-func-to-llvm
 # Convert Index to LLVM (always needed).
-OPTFLAGS += --convert-index-to-llvm
+OPTFLAGS += --convert-index-to-llvm='index-bitwidth=32'
 # Convert remaining unrealized_casts (always needed).
 OPTFLAGS += --reconcile-unrealized-casts
 
